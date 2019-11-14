@@ -157,6 +157,10 @@ class Normalize(object):
 
 
 class ToTensor(object):
-    def __call__(self, sample):
-        sample = sample.transpose(2, 0, 1)
-        return torch.from_numpy(sample.astype(np.float32))
+    def __call__(self, img):
+        if len(list(torch.from_numpy(img).float().size())) == 2:
+            img = torch.from_numpy(img).float().unsqueeze(2)
+        else:
+            img = torch.from_numpy(img).float()
+        return img.permute((2, 0, 1))
+
