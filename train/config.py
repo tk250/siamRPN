@@ -5,9 +5,9 @@ class Config(object):
     '''config for train_siamrpn.py'''
     template_img_size  = 127
     detection_img_size = 271
-    epoches = 50
+    epoches = 10
     train_epoch_size = 1000
-    val_epoch_size = 1
+    val_epoch_size = 10
 
     train_batch_size = 32                  # training batch size
     valid_batch_size = 8                   # validation batch size

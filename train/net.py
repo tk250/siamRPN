@@ -22,7 +22,6 @@ class TrackerSiamRPN(Tracker):
 
         '''setup GPU device if available'''
         self.cuda   = torch.cuda.is_available()
-        print(torch.cuda.is_available())
         self.device = torch.device('cuda:0' if self.cuda else 'cpu')
 
         '''setup model'''
@@ -42,20 +41,26 @@ class TrackerSiamRPN(Tracker):
             momentum     = config.momentum,
             weight_decay = config.weight_decay)
 
-    def step(self, epoch, dataset, anchors, i = 0,  train=True):
+    def step(self, epoch, dataset, anchors, epoche, i = 0,  train=True):
 
         if train:
             self.net.train()
         else:
             self.net.eval()
 
-        template, detection, regression_target, conf_target = dataset
+        template_rgb, detection_rgb, template_i, detection_i, regression_target, conf_target = dataset
+        template_i, detection_i = torch.from_numpy(np.zeros(template_i.size())).float(), torch.from_numpy(np.zeros(detection_i.size())).float()
 
         if self.cuda:
-            template, detection = template.cuda(), detection.cuda()
+            template_rgb, detection_rgb, template_i, detection_i = template_rgb.cuda(), detection_rgb.cuda(), template_i.cuda(), detection_i.cuda()
             regression_target, conf_target = regression_target.cuda(), conf_target.cuda()
-
-        pred_score, pred_regression = self.net(template, detection)
+        if not train:
+            print(template_rgb)
+            print(template_i)
+        pred_score, pred_regression = self.net(template_rgb, detection_rgb, template_i, detection_i)
+        if not train:
+            print('predictions', pred_score)
+            print(pred_regression)
 
         pred_conf   = pred_score.reshape(-1, 2, config.size).permute(0, 2, 1)
 

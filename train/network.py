@@ -13,7 +13,7 @@ from config import config
 class SiameseAlexNet(nn.Module):
     def __init__(self, ):
         super(SiameseAlexNet, self).__init__()
-        self.featureExtract = nn.Sequential(
+        self.featureExtract_rgb = nn.Sequential(
             nn.Conv2d(3, 96, 11, stride=2),
             nn.BatchNorm2d(96),
             nn.MaxPool2d(3, stride=2),
@@ -27,10 +27,27 @@ class SiameseAlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(384, 384, 3),
             nn.BatchNorm2d(384),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(384, 256, 3),
-            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True)
         )
+        self.featureExtract_ir = nn.Sequential(
+            nn.Conv2d(1, 96, 11, stride=2),
+            nn.BatchNorm2d(96),
+            nn.MaxPool2d(3, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(96, 256, 5),
+            nn.BatchNorm2d(256),
+            nn.MaxPool2d(3, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 384, 3),
+            nn.BatchNorm2d(384),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 384, 3),
+            nn.BatchNorm2d(384),
+            nn.ReLU(inplace=True)
+        )
+        self.conv_together = nn.Sequential(
+            nn.Conv2d(768, 256, 3),
+            nn.BatchNorm2d(256))
         self.anchor_num = config.anchor_num
         self.input_size = config.detection_img_size
         self.score_displacement = int((self.input_size - config.template_img_size) / config.total_stride)
@@ -50,16 +67,22 @@ class SiameseAlexNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, template, detection):
-        N = template.size(0)
-        template_feature = self.featureExtract(template)
-        detection_feature = self.featureExtract(detection)
+    def forward(self, template_rgb, detection_rgb, template_ir, detection_ir):
+        N = template_rgb.size(0)
+        template_feature_rgb = self.featureExtract_rgb(template_rgb)
+        detection_feature_rgb = self.featureExtract_rgb(detection_rgb)
+        template_feature_ir = self.featureExtract_ir(template_ir)
+        detection_feature_ir = self.featureExtract_ir(detection_ir)
+        template_feature = torch.cat((template_feature_rgb, template_feature_ir), 1)
+        detection_feature = torch.cat((detection_feature_rgb, detection_feature_ir), 1)
+        template_feature = self.conv_together(template_feature)
+        detection_feature = self.conv_together(detection_feature)
 
         kernel_score = self.conv_cls1(template_feature).view(N, 2 * self.anchor_num, 256, 4, 4)
+
         kernel_regression = self.conv_r1(template_feature).view(N, 4 * self.anchor_num, 256, 4, 4)
         conv_score = self.conv_cls2(detection_feature)
         conv_regression = self.conv_r2(detection_feature)
-
         conv_scores = conv_score.reshape(1, -1, self.score_displacement + 4, self.score_displacement + 4)
         score_filters = kernel_score.reshape(-1, 256, 4, 4)
         pred_score = F.conv2d(conv_scores, score_filters, groups=N).reshape(N, 10, self.score_displacement + 1,
@@ -72,18 +95,24 @@ class SiameseAlexNet(nn.Module):
                                                               self.score_displacement + 1))
         return pred_score, pred_regression
 
-    def track_init(self, template):
-        N = template.size(0)
-        template_feature = self.featureExtract(template)
+    def track_init(self, template_rgb, template_ir):
+        N = template_rgb.size(0)
+        template_feature_rgb = self.featureExtract_rgb(template_rgb)
+        template_feature_ir = self.featureExtract_ir(template_ir)
+        template_feature = torch.cat((template_feature_rgb, template_feature_ir), 1)
+        template_feature = self.conv_together(template_feature)
 
         kernel_score = self.conv_cls1(template_feature).view(N, 2 * self.anchor_num, 256, 4, 4)
         kernel_regression = self.conv_r1(template_feature).view(N, 4 * self.anchor_num, 256, 4, 4)
         self.score_filters = kernel_score.reshape(-1, 256, 4, 4)
         self.reg_filters = kernel_regression.reshape(-1, 256, 4, 4)
 
-    def track(self, detection):
-        N = detection.size(0)
-        detection_feature = self.featureExtract(detection)
+    def track(self, detection_rgb, detection_ir):
+        N = detection_rgb.size(0)
+        detection_feature_rgb = self.featureExtract_rgb(detection_rgb)
+        detection_feature_ir = self.featureExtract_ir(detection_ir)
+        detection_feature = torch.cat((detection_feature_rgb, detection_feature_ir), 1)
+        detection_feature = self.conv_together(detection_feature)
 
         conv_score = self.conv_cls2(detection_feature)
         conv_regression = self.conv_r2(detection_feature)

@@ -92,7 +92,21 @@ class Util(object):
 
     # freeze layers
     def freeze_layers(self, model):
-        for layer in model.featureExtract[:10]:
+        for layer in model.featureExtract_rgb[:10]:
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
+                for k, v in layer.named_parameters():
+                    v.requires_grad = False
+            elif isinstance(layer, nn.Conv2d):
+                for k, v in layer.named_parameters():
+                    v.requires_grad = False
+            elif isinstance(layer, nn.MaxPool2d):
+                continue
+            elif isinstance(layer, nn.ReLU):
+                continue
+            else:
+                raise KeyError('error in fixing former 3 layers')
+        for layer in model.featureExtract_ir[:10]:
             if isinstance(layer, nn.BatchNorm2d):
                 layer.eval()
                 for k, v in layer.named_parameters():
