@@ -113,7 +113,7 @@ class SiameseAlexNetRGBT(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(384, 384, 3),
             nn.BatchNorm2d(384),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
         self.featureExtract_ir = nn.Sequential(
             nn.Conv2d(1, 96, 11, stride=2),
@@ -129,11 +129,12 @@ class SiameseAlexNetRGBT(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(384, 384, 3),
             nn.BatchNorm2d(384),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
         self.conv_together = nn.Sequential(
             nn.Conv2d(768, 256, 3),
-            nn.BatchNorm2d(256))
+            nn.BatchNorm2d(256),
+        )
         self.anchor_num = config.anchor_num
         self.input_size = config.detection_img_size
         self.score_displacement = int((self.input_size - config.template_img_size) / config.total_stride)
@@ -165,7 +166,6 @@ class SiameseAlexNetRGBT(nn.Module):
         detection_feature = self.conv_together(detection_feature)
 
         kernel_score = self.conv_cls1(template_feature).view(N, 2 * self.anchor_num, 256, 4, 4)
-
         kernel_regression = self.conv_r1(template_feature).view(N, 4 * self.anchor_num, 256, 4, 4)
         conv_score = self.conv_cls2(detection_feature)
         conv_regression = self.conv_r2(detection_feature)

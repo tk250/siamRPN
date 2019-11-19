@@ -12,12 +12,14 @@ from torch.nn import init
 from config import config
 from net import TrackerSiamRPN
 from data import TrainDataLoader
+from data_rgbt import TrainDataLoaderRGBT
 from torch.utils.data import DataLoader
 from util import util, AverageMeter, SavePlot
 from got10k.datasets import ImageNetVID, GOT10k
 from torchvision import datasets, transforms, utils
 from custom_transforms import Normalize, ToTensor, RandomStretch, \
     RandomCrop, CenterCrop, RandomBlur, ColorAug
+from experimentrgbt import RGBTSequence
 
 torch.manual_seed(1234) # config.seed
 
@@ -25,7 +27,7 @@ torch.manual_seed(1234) # config.seed
 parser = argparse.ArgumentParser(description='PyTorch SiameseRPN Training')
 
 parser.add_argument('--train_path', default='/home/krautsct/RGB-T234', metavar='DIR',help='path to dataset')
-parser.add_argument('--experiment_name', default='default', metavar='DIR',help='path to weight')
+parser.add_argument('--experiment_name', default='late_fusion', metavar='DIR',help='path to weight')
 parser.add_argument('--checkpoint_path', default=None, help='resume')
 # /home/arbi/desktop/GOT-10k # /Users/arbi/Desktop # /home/arbi/desktop/ILSVRC
 # 'experiments/default/model/model_e1.pth'
@@ -40,10 +42,11 @@ def main():
 
     '''setup train data loader'''
     name = 'GOT-10k'
-    assert name in ['VID', 'GOT-10k', 'All']
+    assert name in ['VID', 'GOT-10k', 'All', 'RGBT-234']
     if name == 'GOT-10k':
         root_dir = args.train_path
-        seq_dataset = GOT10k(root_dir, subset='train_i')
+        seq_dataset_rgb = GOT10k(root_dir, subset='train_i')
+        seq_dataset_i = GOT10k(root_dir, subset='train_i', visible=False)
     elif name == 'VID':
         root_dir = '/home/arbi/desktop/ILSVRC'
         seq_dataset = ImageNetVID(root_dir, subset=('train'))
@@ -53,7 +56,11 @@ def main():
         root_dir_got = args.train_path
         seq_datasetGOT = GOT10k(root_dir_got, subset='train')
         seq_dataset = util.data_split(seq_datasetVID, seq_datasetGOT)
-    print('seq_dataset', len(seq_dataset))
+    elif name == 'RGBT-234':
+        root_dir = args.train_path
+        seq_dataset = RGBTSequence(root_dir, subset='train')
+        seq_dataset_val = RGBTSequence(root_dir, subset='val')
+    print('seq_dataset', len(seq_dataset_rgb))
 
     train_z_transforms = transforms.Compose([
         ToTensor()
@@ -62,9 +69,16 @@ def main():
         ToTensor()
     ])
 
-    train_data  = TrainDataLoader(seq_dataset, train_z_transforms, train_x_transforms, name)
-    anchors = train_data.anchors
-    train_loader = DataLoader(  dataset    = train_data,
+    train_data_ir  = TrainDataLoaderRGBT(seq_dataset_rgb, seq_dataset_i, train_z_transforms, train_x_transforms, name)
+    anchors = train_data_ir.anchors
+    train_loader_ir = DataLoader(  dataset    = train_data_ir,
+                                batch_size = config.train_batch_size,
+                                shuffle    = True,
+                                num_workers= config.train_num_workers,
+                                pin_memory = True)
+    train_data_rgb  = TrainDataLoader(seq_dataset_rgb, train_z_transforms, train_x_transforms, name)
+    anchors = train_data_rgb.anchors
+    train_loader_rgb = DataLoader(  dataset    = train_data_rgb,
                                 batch_size = config.train_batch_size,
                                 shuffle    = True,
                                 num_workers= config.train_num_workers,
@@ -72,10 +86,11 @@ def main():
 
     '''setup val data loader'''
     name = 'GOT-10k'
-    assert name in ['VID', 'GOT-10k', 'All']
+    assert name in ['VID', 'GOT-10k', 'All', 'RGBT-234']
     if name == 'GOT-10k':
         val_dir = '/home/krautsct/RGB-t-Val'
-        seq_dataset_val = GOT10k(val_dir, subset='train_i')
+        seq_dataset_val_rgb = GOT10k(val_dir, subset='train_i')
+        seq_dataset_val_ir = GOT10k(val_dir, subset='train_i', visible=False)
     elif name == 'VID':
         root_dir = '/home/arbi/desktop/ILSVRC'
         seq_dataset_val = ImageNetVID(root_dir, subset=('val'))
@@ -85,7 +100,7 @@ def main():
         root_dir_got = args.train_path
         seq_datasetGOT = GOT10k(root_dir_got, subset='val')
         seq_dataset_val = util.data_split(seq_datasetVID, seq_datasetGOT)
-    print('seq_dataset_val', len(seq_dataset_val))
+    print('seq_dataset_val', len(seq_dataset_val_rgb))
 
     valid_z_transforms = transforms.Compose([
         ToTensor()
@@ -94,8 +109,14 @@ def main():
         ToTensor()
     ])
 
-    val_data  = TrainDataLoader(seq_dataset_val, valid_z_transforms, valid_x_transforms, name)
-    val_loader = DataLoader(    dataset    = val_data,
+    val_data  = TrainDataLoaderRGBT(seq_dataset_val_rgb, seq_dataset_val_ir, valid_z_transforms, valid_x_transforms, name)
+    val_loader_ir = DataLoader(    dataset    = val_data,
+                                batch_size = config.valid_batch_size,
+                                shuffle    = False,
+                                num_workers= config.valid_num_workers,
+                                pin_memory = True)
+    val_data_rgb  = TrainDataLoader(seq_dataset_val_rgb, valid_z_transforms, valid_x_transforms, name)
+    val_loader_rgb = DataLoader(    dataset    = val_data_rgb,
                                 batch_size = config.valid_batch_size,
                                 shuffle    = False,
                                 num_workers= config.valid_num_workers,
@@ -135,9 +156,9 @@ def main():
         print('Train epoch {}/{}'.format(epoch+1, config.epoches))
         train_loss = []
         with tqdm(total=config.train_epoch_size) as progbar:
-            for i, dataset in enumerate(train_loader):
+            for i, (dataset_rgb, dataset_ir) in enumerate(zip(train_loader_rgb, train_loader_ir)):
 
-                closs, rloss, loss = model.step(epoch, dataset,anchors, i,  train=True)
+                closs, rloss, loss = model.step(epoch, dataset_rgb, dataset_ir, anchors, epoch, i, train=True)
 
                 closs_ = closs.cpu().item()
 
@@ -168,9 +189,9 @@ def main():
         val_loss = []
         with tqdm(total=config.val_epoch_size) as progbar:
             print('Val epoch {}/{}'.format(epoch+1, config.epoches))
-            for i, dataset in enumerate(val_loader):
+            for i, (dataset_rgb, dataset_ir) in enumerate(zip(val_loader_rgb, val_loader_ir)):
 
-                val_closs, val_rloss, val_tloss = model.step(epoch, dataset, anchors, train=False)
+                val_closs, val_rloss, val_tloss = model.step(epoch, dataset_rgb, dataset_ir, anchors, epoch, train=False)
 
                 closs_ = val_closs.cpu().item()
 

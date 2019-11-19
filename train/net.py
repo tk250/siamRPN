@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from config import config
 from got10k.trackers import Tracker
-from network import SiameseAlexNet
+from network_early import SiameseAlexNet, SiameseAlexNetRGBT
 from loss import rpn_smoothL1, rpn_cross_entropy_balance
 
 class TrackerSiamRPN(Tracker):
@@ -22,11 +22,10 @@ class TrackerSiamRPN(Tracker):
 
         '''setup GPU device if available'''
         self.cuda   = torch.cuda.is_available()
-        print(torch.cuda.is_available())
         self.device = torch.device('cuda:0' if self.cuda else 'cpu')
 
         '''setup model'''
-        self.net = SiameseAlexNet()
+        self.net = SiameseAlexNetRGBT()
         #self.net.init_weights()
 
         if net_path is not None:
@@ -42,20 +41,21 @@ class TrackerSiamRPN(Tracker):
             momentum     = config.momentum,
             weight_decay = config.weight_decay)
 
-    def step(self, epoch, dataset, anchors, i = 0,  train=True):
+    def step(self, epoch, dataset_rgb, dataset_ir, anchors, epoche, i = 0,  train=True):
 
         if train:
             self.net.train()
         else:
             self.net.eval()
 
-        template, detection, regression_target, conf_target = dataset
+        _, _, template_i, detection_i, _, _ = dataset_ir
+        template_rgb, detection_rgb, regression_target, conf_target = dataset_rgb
+        #template_i, detection_i = torch.from_numpy(np.zeros(template_i.size())).float(), torch.from_numpy(np.zeros(detection_i.size())).float()
 
         if self.cuda:
-            template, detection = template.cuda(), detection.cuda()
+            template_rgb, detection_rgb, template_i, detection_i = template_rgb.cuda(), detection_rgb.cuda(), template_i.cuda(), detection_i.cuda()
             regression_target, conf_target = regression_target.cuda(), conf_target.cuda()
-
-        pred_score, pred_regression = self.net(template, detection)
+        pred_score, pred_regression = self.net(template_rgb, detection_rgb, template_i, detection_i)
 
         pred_conf   = pred_score.reshape(-1, 2, config.size).permute(0, 2, 1)
 
