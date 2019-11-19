@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import numpy as np
 import time
+import cv2
 from PIL import Image
 
 from ..utils.viz import show_frame
@@ -19,26 +20,29 @@ class Tracker(object):
     def update(self, image):
         raise NotImplementedError()
 
-    def track(self, img_files, box, visualize=False):
+    def track(self, img_files, infrared_files, box, visualize=False):
         frame_num = len(img_files)
         boxes = np.zeros((frame_num, 4))
         boxes[0] = box
         times = np.zeros(frame_num)
 
-        for f, img_file in enumerate(img_files):
-            image = Image.open(img_file)
-            if not image.mode == 'RGB':
-                image = image.convert('RGB')
+        for f, (img_file, infrared_file) in enumerate(zip(img_files, infrared_files)):
+            image1 = Image.open(img_file)
+            if not image1.mode == 'RGB':
+                image1 = image1.convert('RGB')
+            #image = np.array(image1)
+            infrared_image = Image.open(infrared_file).convert('L')
+            infrared_image = np.array(infrared_image) 
 
             start_time = time.time()
             if f == 0:
-                self.init(image, box)
+                self.init(image1, infrared_image, box)
             else:
-                boxes[f, :] = self.update(image)
+                boxes[f, :] = self.update(image1, infrared_image)
             times[f] = time.time() - start_time
 
             if visualize:
-                show_frame(image, boxes[f, :])
+                show_frame(image1, boxes[f, :])
 
         return boxes, times
 
