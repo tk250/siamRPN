@@ -48,7 +48,7 @@ class TrackerSiamRPN(Tracker):
         else:
             self.net.eval()
 
-        _, _, template_i, detection_i, _, _ = dataset_ir
+        template_i, detection_i, _, _ = dataset_ir
         template_rgb, detection_rgb, regression_target, conf_target = dataset_rgb
         #template_i, detection_i = torch.from_numpy(np.zeros(template_i.size())).float(), torch.from_numpy(np.zeros(detection_i.size())).float()
 

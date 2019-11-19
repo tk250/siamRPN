@@ -12,6 +12,7 @@ from torch.nn import init
 from config import config
 from net import TrackerSiamRPN
 from data import TrainDataLoader
+from data_ir import TrainDataLoader_ir
 from data_rgbt import TrainDataLoaderRGBT
 from torch.utils.data import DataLoader
 from util import util, AverageMeter, SavePlot
@@ -28,7 +29,7 @@ parser = argparse.ArgumentParser(description='PyTorch SiameseRPN Training')
 
 parser.add_argument('--train_path', default='/home/krautsct/RGB-T234', metavar='DIR',help='path to dataset')
 parser.add_argument('--experiment_name', default='late_fusion', metavar='DIR',help='path to weight')
-parser.add_argument('--checkpoint_path', default=None, help='resume')
+parser.add_argument('--checkpoint_path', default='./experiments/late_fusion/model/model_e50.pth', help='resume')
 # /home/arbi/desktop/GOT-10k # /Users/arbi/Desktop # /home/arbi/desktop/ILSVRC
 # 'experiments/default/model/model_e1.pth'
 def main():
@@ -69,7 +70,7 @@ def main():
         ToTensor()
     ])
 
-    train_data_ir  = TrainDataLoaderRGBT(seq_dataset_rgb, seq_dataset_i, train_z_transforms, train_x_transforms, name)
+    train_data_ir  = TrainDataLoader_ir(seq_dataset_i, train_z_transforms, train_x_transforms, name)
     anchors = train_data_ir.anchors
     train_loader_ir = DataLoader(  dataset    = train_data_ir,
                                 batch_size = config.train_batch_size,
