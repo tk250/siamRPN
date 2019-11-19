@@ -107,6 +107,7 @@ class Util(object):
         return np.array([rect[0]+rect[2]/2, rect[1]+rect[3]/2]), np.array([rect[2], rect[3]])  # 0-index
 
     def box_transform_inv(self, anchors, offset):
+        #print(anchors)
         anchor_xctr = anchors[:, :1]
         anchor_yctr = anchors[:, 1:2]
         anchor_w = anchors[:, 2:3]
@@ -115,9 +116,12 @@ class Util(object):
 
         box_cx = anchor_w * offset_x + anchor_xctr
         box_cy = anchor_h * offset_y + anchor_yctr
+        #print('exponenten:', offset_w)
+        #print('exponenten:', offset_h)
         box_w = anchor_w * np.exp(offset_w)
         box_h = anchor_h * np.exp(offset_h)
         box = np.hstack([box_cx, box_cy, box_w, box_h])
+        #print('util', box)
         return box
 
     def change(self, r):

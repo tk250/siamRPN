@@ -157,25 +157,29 @@ class TrackerRGBTDataLoader(object):
 
     def crop_and_pad(self, img, cx, cy, model_sz, original_sz, img_mean=None):
 
+        def round_up(value):
+            return round(value + 1e-6 + 1000) - 1000
+
         if len(img.shape) > 2:
             im_h, im_w, _ = img.shape
         else:
             im_h, im_w = img.shape
+
 
         xmin = cx - (original_sz - 1) / 2
         xmax = xmin + original_sz - 1
         ymin = cy - (original_sz - 1) / 2
         ymax = ymin + original_sz - 1
 
-        left = int(self.round_up(max(0., -xmin)))
-        top = int(self.round_up(max(0., -ymin)))
-        right = int(self.round_up(max(0., xmax - im_w + 1)))
-        bottom = int(self.round_up(max(0., ymax - im_h + 1)))
+        left = int(round_up(max(0., -xmin)))
+        top = int(round_up(max(0., -ymin)))
+        right = int(round_up(max(0., xmax - im_w + 1)))
+        bottom = int(round_up(max(0., ymax - im_h + 1)))
 
-        xmin = int(self.round_up(xmin + left))
-        xmax = int(self.round_up(xmax + left))
-        ymin = int(self.round_up(ymin + top))
-        ymax = int(self.round_up(ymax + top))
+        xmin = int(round_up(xmin + left))
+        xmax = int(round_up(xmax + left))
+        ymin = int(round_up(ymin + top))
+        ymax = int(round_up(ymax + top))
 
 
         if len(img.shape) > 2:
@@ -185,11 +189,10 @@ class TrackerRGBTDataLoader(object):
             k = 1
 
 
-
         if any([top, bottom, left, right]):
 
             if k > 1:
-                te_im = np.zeros((r + top + bottom, c + left + right, k), np.uint8)  # 0 is better than 1 initialization
+                te_im = np.zeros((r + top + bottom, c + left + right, k), np.uint8)
                 te_im[top:top + r, left:left + c, :] = img
                 if top:
                     te_im[0:top, left:left + c, :] = img_mean
@@ -201,7 +204,7 @@ class TrackerRGBTDataLoader(object):
                     te_im[:, c + left:, :] = img_mean
                 im_patch_original = te_im[int(ymin):int(ymax + 1), int(xmin):int(xmax + 1), :]
             else:
-                te_im = np.zeros((r + top + bottom, c + left + right), np.uint8)  # 0 is better than 1 initialization
+                te_im = np.zeros((r + top + bottom, c + left + right), np.uint8)
                 te_im[top:top + r, left:left + c] = img
                 if top:
                     te_im[0:top, left:left + c] = img_mean
@@ -218,16 +221,13 @@ class TrackerRGBTDataLoader(object):
             else:
                 im_patch_original = img[int(ymin):int(ymax + 1), int(xmin):int(xmax + 1)]
 
+
         if not np.array_equal(model_sz, original_sz):
-            im_patch = cv2.resize(im_patch_original, (int(model_sz), int(model_sz)))  # zzp: use cv to get a better speed
+            im_patch = cv2.resize(im_patch_original, (model_sz, model_sz))
         else:
             im_patch = im_patch_original
         scale = model_sz / im_patch_original.shape[0]
-
         return im_patch, scale
-
-    def round_up(self, value):
-        return round(value + 1e-6 + 1000) - 1000
 
     def box_transform_inv(self, anchors, offset):
         anchor_xctr = anchors[:, :1]
