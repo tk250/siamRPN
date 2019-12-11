@@ -159,7 +159,7 @@ class TrackerSiamRPNRGBT(Tracker):
         # get exemplar feature
         exemplar_rgb_img = self.transforms(exemplar_rgb_img)[None, :, :, :]
         exemplar_ir_img = self.transforms(exemplar_ir_img)[None, :, :, :]
-        exemplar_ir_img = torch.from_numpy(np.zeros(exemplar_ir_img.size())).float()
+        #exemplar_ir_img = torch.from_numpy(np.zeros(exemplar_ir_img.size())).float()
         if self.cuda:
             self.model.track_init(exemplar_rgb_img.cuda(), exemplar_ir_img.cuda())
         else:
@@ -197,7 +197,7 @@ class TrackerSiamRPNRGBT(Tracker):
 
         instance_rgb_img = self.transforms(instance_rgb_img)[None, :, :, :]
         instance_ir_img = self.transforms(instance_ir_img)[None, :, :, :]
-        instance_ir_img = torch.from_numpy(np.zeros(instance_ir_img.size())).float()
+        #instance_ir_img = torch.from_numpy(np.zeros(instance_ir_img.size())).float()
 
         if self.cuda:
             pred_score, pred_regression = self.model.track(instance_rgb_img.cuda(), instance_ir_img.cuda())
