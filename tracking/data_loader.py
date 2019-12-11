@@ -11,7 +11,6 @@ from torchvision import datasets, transforms, utils
 class TrackerDataLoader(object):
 
     def get_instance_image(self, img, bbox, size_z, size_x, context_amount, img_mean=None):
-
         cx, cy, w, h = bbox  # float type
         wc_z = w + 0.5 * (w + h)
         hc_z = h + 0.5 * (w + h)

@@ -11,6 +11,7 @@ from config import config
 from torch.autograd import Variable
 from got10k.trackers import Tracker
 from network_dense import SiameseAlexNet, SiameseAlexNetRGBT
+from network_SSMA import SiameseAlexNetSSMA
 from data_loader import TrackerRGBTDataLoader, TrackerDataLoader
 from PIL import Image, ImageOps, ImageStat, ImageDraw
 
@@ -73,11 +74,11 @@ class SiamRPN(nn.Module):
 
         return out_reg, out_cls
 
-class TrackerSiamRPNBIG(Tracker):
+class TrackerSiamRPNRGBT(Tracker):
     def __init__(self, params, model_path = None, name='SiamRPN', **kargs):
-        super(TrackerSiamRPNBIG, self).__init__(name=name, is_deterministic=True)
+        super(TrackerSiamRPNRGBT, self).__init__(name=name, is_deterministic=True)
 
-        self.model = SiameseAlexNet()
+        self.model = SiameseAlexNetRGBT()
 
         self.cuda = torch.cuda.is_available()
         self.device = torch.device('cuda:0' if self.cuda else 'cpu')
@@ -119,13 +120,14 @@ class TrackerSiamRPNBIG(Tracker):
         cos_window /= np.sum(cos_window)
         return cos_window
 
-    def init(self, exemplar_rgb_img, bbox): #exemplar_ir_img,
+    def init(self, exemplar_rgb_img, exemplar_ir_img, bbox): #
 
         """ initialize siamfc tracker
         Args:
             frame: an RGB image
             bbox: one-based bounding box [x, y, width, height]
         """
+
 
         self.pos = np.array([bbox[0] + bbox[2] / 2 - 1 / 2, bbox[1] + bbox[3] / 2 - 1 / 2])  # center x, center y, zero based
         #self.pos = np.array([bbox[0], bbox[1]])  # center x, center y, zero based
@@ -140,32 +142,31 @@ class TrackerSiamRPNBIG(Tracker):
 
         self.img_mean = np.mean(exemplar_rgb_img, axis=(0, 1))
         exemplar_rgb_img = np.asarray(exemplar_rgb_img)
-        print('init', self.bbox)
         exemplar_rgb_img, _, _ = self.old_loader.get_exemplar_image(   exemplar_rgb_img,
                                                                         self.bbox,
                                                                         config.template_img_size,
                                                                         config.context_amount,
                                                                         self.img_mean)
-        #self.img_mean_ir = np.mean(exemplar_ir_img, axis=(0, 1))
+        self.img_mean_ir = np.mean(exemplar_ir_img, axis=(0, 1))
 
 
-        #exemplar_ir_img, _, _ = self.data_loader.get_exemplar_image(   exemplar_ir_img,
-                                                                       #self.bbox,
-                                                                       #config.template_img_size,
-                                                                       #config.context_amount,
-                                                                       #self.img_mean_ir)
+        exemplar_ir_img, _, _ = self.data_loader.get_exemplar_image(   exemplar_ir_img,
+                                                                       self.bbox,
+                                                                       config.template_img_size,
+                                                                       config.context_amount,
+                                                                       self.img_mean_ir)
         #cv2.imshow('exemplar_img', exemplar_img)
         # get exemplar feature
         exemplar_rgb_img = self.transforms(exemplar_rgb_img)[None, :, :, :]
-        #exemplar_ir_img = self.transforms(exemplar_ir_img)[None, :, :, :]
-        #exemplar_ir_img = torch.from_numpy(np.zeros(exemplar_ir_img.size())).float()
+        exemplar_ir_img = self.transforms(exemplar_ir_img)[None, :, :, :]
+        exemplar_ir_img = torch.from_numpy(np.zeros(exemplar_ir_img.size())).float()
         if self.cuda:
-            self.model.track_init(exemplar_rgb_img.cuda())#, exemplar_ir_img.cuda()
+            self.model.track_init(exemplar_rgb_img.cuda(), exemplar_ir_img.cuda())
         else:
-            self.model.track_init(exemplar_img)#, exemplar_ir_img
-        print('init', self.bbox)
+            self.model.track_init(exemplar_img, exemplar_ir_img)
+        print('bbox', self.bbox)
 
-    def update(self, instance_rgb_img):#, instance_ir_img
+    def update(self, instance_rgb_img, instance_ir_img):
         """track object based on the previous frame
         Args:
             frame: an RGB image
@@ -184,25 +185,24 @@ class TrackerSiamRPNBIG(Tracker):
                                                                            config.detection_img_size,
                                                                            config.context_amount,
                                                                            self.img_mean)
-        #self.img_mean_ir = np.mean(instance_ir_img, axis=(0, 1))
+        self.img_mean_ir = np.mean(instance_ir_img, axis=(0, 1))
 
 
-        #instance_ir_img, _, _, _ = self.data_loader.get_instance_image(   instance_ir_img,
-                                                                                #self.bbox,
-                                                                                #config.template_img_size,
-                                                                                #config.detection_img_size,
-                                                                                #config.context_amount,
-                                                                                #self.img_mean_ir)
+        instance_ir_img, _, _, _ = self.data_loader.get_instance_image(   instance_ir_img,
+                                                                                self.bbox,
+                                                                                config.template_img_size,
+                                                                                config.detection_img_size,
+                                                                                config.context_amount,
+                                                                                self.img_mean_ir)
 
         instance_rgb_img = self.transforms(instance_rgb_img)[None, :, :, :]
-        #instance_ir_img = self.transforms(instance_ir_img)[None, :, :, :]
-        #instance_ir_img = torch.from_numpy(np.zeros(instance_ir_img.size())).float()
+        instance_ir_img = self.transforms(instance_ir_img)[None, :, :, :]
+        instance_ir_img = torch.from_numpy(np.zeros(instance_ir_img.size())).float()
 
         if self.cuda:
-            pred_score, pred_regression = self.model.track(instance_rgb_img.cuda())#,instance_ir_img.cuda()
+            pred_score, pred_regression = self.model.track(instance_rgb_img.cuda(), instance_ir_img.cuda())
         else:
             pred_score, pred_regression = self.model.track(instance_rgb_img, instance_ir_img)
-        print('scores"', pred_score.mean(), pred_regression.mean())
 
         pred_conf   = pred_score.reshape(-1, 2, config.size ).permute(0, 2, 1)
         pred_offset = pred_regression.reshape(-1, 4, config.size ).permute(0, 2, 1)

@@ -96,46 +96,54 @@ class SiameseAlexNet(nn.Module):
                                                                    self.score_displacement + 1))
         return pred_score, pred_regression
 
-class SiameseAlexNetLate(nn.Module):
+class SiameseAlexNetSSMA(nn.Module):
     def __init__(self, ):
-        super(SiameseAlexNetLate, self).__init__()
-        self.featureExtract_rgb = nn.Sequential(
-            nn.Conv2d(3, 96, 11, stride=2),
-            nn.BatchNorm2d(96),
-            nn.MaxPool2d(3, stride=2),
+        super(SiameseAlexNetSSMA, self).__init__()
+        #RGB BRANCH
+        self.conv1_rgb = nn.Sequential(
+            nn.Conv2d(3, 192, 11, 2),
+            nn.BatchNorm2d(192),
             nn.ReLU(inplace=True),
-            nn.Conv2d(96, 256, 5),
-            nn.BatchNorm2d(256),
-            nn.MaxPool2d(3, stride=2),
+            nn.MaxPool2d(3, 2),
+            nn.Conv2d(192, 512, 5, 1),
+            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 384, 3),
-            nn.BatchNorm2d(384),
+            nn.MaxPool2d(3, 2),
+            nn.Conv2d(512, 768, 3, 1),
+            nn.BatchNorm2d(768),
             nn.ReLU(inplace=True),
-            nn.Conv2d(384, 384, 3),
-            nn.BatchNorm2d(384),
+            nn.Conv2d(768, 768, 3, 1),
+            nn.BatchNorm2d(768),
+            nn.ReLU(inplace=True))
+
+
+        #IR BRANCH
+        self.conv1_t = nn.Sequential(
+            nn.Conv2d(1, 192, 11, 2),
+            nn.BatchNorm2d(192),
             nn.ReLU(inplace=True),
-            nn.Conv2d(384, 256, 3),
-            nn.BatchNorm2d(256),
-        )
-        self.featureExtract_ir = nn.Sequential(
-            nn.Conv2d(1, 96, 11, stride=2),
-            nn.BatchNorm2d(96),
-            nn.MaxPool2d(3, stride=2),
+            nn.MaxPool2d(3, 2),
+            nn.Conv2d(192, 512, 5, 1),
+            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            nn.Conv2d(96, 256, 5),
-            nn.BatchNorm2d(256),
-            nn.MaxPool2d(3, stride=2),
+            nn.MaxPool2d(3, 2),
+            nn.Conv2d(512, 768, 3, 1),
+            nn.BatchNorm2d(768),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 384, 3),
-            nn.BatchNorm2d(384),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(384, 384, 3),
-            nn.BatchNorm2d(384),
-            nn.ReLU(inplace=True)
-        )
-        self.conv_together = nn.Sequential(
-            nn.Conv2d(768, 256, 3),
+            nn.Conv2d(768, 768, 3, 1),
+            nn.BatchNorm2d(768),
+            nn.ReLU(inplace=True))
+
+        # SSMA BLOCK
+        self.reduction_rate = 16
+
+        self.ssma_contract = nn.Conv2d(2*768, 2*768//self.reduction_rate, 3, 1, padding=1)
+        self.ssma_expand = nn.Conv2d(2*768//self.reduction_rate, 2*768, 3, padding=1)
+
+        self.out = nn.Sequential(
+            nn.Conv2d(2*768, 256, 3, 1),
             nn.BatchNorm2d(256))
+
         self.anchor_num = config.anchor_num
         self.input_size = config.detection_img_size
         self.score_displacement = int((self.input_size - config.template_img_size) / config.total_stride)
@@ -157,17 +165,36 @@ class SiameseAlexNetLate(nn.Module):
 
     def forward(self, template_rgb, detection_rgb, template_ir, detection_ir):
         N = template_rgb.size(0)
-        template = torch.cat((template_rgb, template_ir), 1)
-        detection = torch.cat((detection_rgb, detection_ir), 1)
-        template_feature = self.featureExtract_rgb(template)
-        detection_feature_rgb = self.featureExtract_rgb(detection)
-        #template_feature_ir = self.featureExtract_ir(template_ir)
-        #detection_feature_ir = self.featureExtract_ir(detection_ir)
-        template_feature = self.conv_together(template_feature)
-        detection_feature = self.conv_together(detection_feature)
+        x_rgb_temp = self.conv1_rgb(template_rgb)
+
+        x_ir_temp = self.conv1_t(template_ir)
+
+
+        x_rgbir_temp = torch.cat((x_rgb_temp, x_ir_temp), 1)
+
+        ssma_reduction_temp = torch.relu(self.ssma_contract(x_rgbir_temp))
+        ssma_expand_temp = torch.sigmoid(self.ssma_expand(ssma_reduction_temp))
+
+        mul_temp = x_rgbir_temp * ssma_expand_temp
+
+        template_feature = self.out(mul_temp)
+
+        x_rgb_det = self.conv1_rgb(detection_rgb)
+
+        x_ir_det = self.conv1_t(detection_ir)
+
+
+        x_rgbir_det = torch.cat((x_rgb_det, x_ir_det), 1)
+
+        ssma_reduction_det = torch.relu(self.ssma_contract(x_rgbir_det))
+        ssma_expand_det = torch.sigmoid(self.ssma_expand(ssma_reduction_det))
+
+        mul_det = x_rgbir_det * ssma_expand_det
+
+        detection_feature = self.out(mul_det)
+
 
         kernel_score = self.conv_cls1(template_feature).view(N, 2 * self.anchor_num, 256, 4, 4)
-
         kernel_regression = self.conv_r1(template_feature).view(N, 4 * self.anchor_num, 256, 4, 4)
         conv_score = self.conv_cls2(detection_feature)
         conv_regression = self.conv_r2(detection_feature)
@@ -185,10 +212,19 @@ class SiameseAlexNetLate(nn.Module):
 
     def track_init(self, template_rgb, template_ir):
         N = template_rgb.size(0)
-        template_feature_rgb = self.featureExtract_rgb(template_rgb)
-        template_feature_ir = self.featureExtract_ir(template_ir)
-        template_feature = torch.cat((template_feature_rgb, template_feature_ir), 1)
-        template_feature = self.conv_together(template_feature)
+        x_rgb_temp = self.conv1_rgb(template_rgb)
+
+        x_ir_temp = self.conv1_t(template_ir)
+
+
+        x_rgbir_temp = torch.cat((x_rgb_temp, x_ir_temp), 1)
+
+        ssma_reduction_temp = torch.relu(self.ssma_contract(x_rgbir_temp))
+        ssma_expand_temp = torch.sigmoid(self.ssma_expand(ssma_reduction_temp))
+
+        mul_temp = x_rgbir_temp * ssma_expand_temp
+
+        template_feature = self.out(mul_temp)
 
 
         kernel_score = self.conv_cls1(template_feature).view(N, 2 * self.anchor_num, 256, 4, 4)
@@ -198,11 +234,20 @@ class SiameseAlexNetLate(nn.Module):
 
     def track(self, detection_rgb, detection_ir):
         N = detection_rgb.size(0)
-        detection_feature_rgb = self.featureExtract_rgb(detection_rgb)
-        detection_feature_ir = self.featureExtract_ir(detection_ir)
-        detection_feature = torch.cat((detection_feature_rgb, detection_feature_ir), 1)
-        detection_feature = self.conv_together(detection_feature)
+        x_rgb_det = self.conv1_rgb(detection_rgb)
 
+        x_ir_det = self.conv1_t(detection_ir)
+
+
+        x_rgbir_det = torch.cat((x_rgb_det, x_ir_det), 1)
+
+        ssma_reduction_det = torch.relu(self.ssma_contract(x_rgbir_det))
+        ssma_expand_det = torch.sigmoid(self.ssma_expand(ssma_reduction_det))
+
+        mul_det = x_rgbir_det * ssma_expand_det
+
+
+        detection_feature = self.out(mul_det)
         conv_score = self.conv_cls2(detection_feature)
         conv_regression = self.conv_r2(detection_feature)
 
