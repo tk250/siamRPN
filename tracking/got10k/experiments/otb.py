@@ -24,10 +24,9 @@ class ExperimentOTB(object):
         report_dir (string, optional): Directory for storing performance
             evaluation results. Default is ``./reports``.
     """
-    def __init__(self, root_dir, version=2015,
+    def __init__(self, root_dir, RGBT=False, version=2015,
                  result_dir='results', report_dir='reports'):
         super(ExperimentOTB, self).__init__()
-        print(root_dir)
         self.dataset = OTB(root_dir, version, download=False)
         self.result_dir = os.path.join(result_dir, 'OTB' + str(version))
         self.report_dir = os.path.join(report_dir, 'OTB' + str(version))
@@ -35,13 +34,13 @@ class ExperimentOTB(object):
         # converges to the average overlap (AO)
         self.nbins_iou = 21
         self.nbins_ce = 51
+        self.rgbt = RGBT
 
     def run(self, tracker, visualize=False):
         print('Running tracker %s on %s...' % (
             tracker.name, type(self.dataset).__name__))
-
         # loop over the complete dataset
-        for s, (img_files, anno) in enumerate(self.dataset):
+        for s, (visible_files, infrared_files, anno) in enumerate(self.dataset):
             seq_name = self.dataset.seq_names[s]
             print('--Sequence %d/%d: %s' % (s + 1, len(self.dataset), seq_name))
 
@@ -51,10 +50,14 @@ class ExperimentOTB(object):
             if os.path.exists(record_file):
                 print('  Found results, skipping', seq_name)
                 continue
-
+            
             # tracking loop
-            boxes, times = tracker.track(
-                img_files, anno[0, :], visualize=visualize)
+            if self.rgbt:
+                boxes, times = tracker.track(
+                    visible_files, anno[0, :], infrared_files, visualize=visualize)#
+            else:
+                boxes, times = tracker.track(
+                    visible_files, anno[0, :], visualize=visualize)
             assert len(boxes) == len(anno)
             
             # record results
@@ -81,7 +84,8 @@ class ExperimentOTB(object):
                 'overall': {},
                 'seq_wise': {}}})
 
-            for s, (_, anno) in enumerate(self.dataset):
+            for s, (_, _, anno) in enumerate(self.dataset):
+                print(s)
                 seq_name = self.dataset.seq_names[s]
                 record_file = os.path.join(
                     self.result_dir, name, '%s.txt' % seq_name)

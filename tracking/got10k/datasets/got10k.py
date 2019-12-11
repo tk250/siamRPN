@@ -24,7 +24,7 @@ class GOT10k(object):
         list_file (string, optional): If provided, only read sequences
             specified by the file instead of all sequences in the subset.
     """
-    def __init__(self, root_dir, subset='test', return_meta=False,
+    def __init__(self, root_dir, subset='train_i', return_meta=False, 
                  visible=True, list_file=None):
         super(GOT10k, self).__init__()
         assert subset in ['train', 'val', 'test', 'train_i'], 'Unknown subset.'
@@ -32,7 +32,7 @@ class GOT10k(object):
         self.subset = subset
         self.return_meta = False if subset == 'test' else return_meta
         self.seq_names = os.listdir(root_dir)
-        
+
         #infrared images
         if subset == 'train_i' and visible == False:   
             self.seq_dirs = [os.path.join(root_dir, s, 'infrared')
@@ -56,7 +56,6 @@ class GOT10k(object):
                                  for s in self.seq_names]
                 self.anno_files = [os.path.join(d, 'groundtruth.txt')
                                    for d in self.seq_dirs]
-
     
     def __getitem__(self, index):
         r"""        
@@ -94,7 +93,7 @@ class GOT10k(object):
         return len(self.seq_names)
 
     def _check_integrity(self, root_dir, subset, list_file=None):
-        assert subset in ['train', 'val', 'test']
+        assert subset in ['train', 'val', 'test', 'train_i']
         if list_file is None:
             list_file = os.path.join(root_dir, subset, 'list.txt')
 

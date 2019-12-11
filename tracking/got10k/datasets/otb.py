@@ -59,22 +59,73 @@ class OTB(object):
                     'Skater2', 'Subway', 'Suv', 'Tiger1', 'Toy', 'Trans',
                     'Twinnings', 'Vase'] + __tb50_seqs
 
+    __otb15_seqs = __tb100_seqs
+
+    __infrared = ['afterrain', 'aftertree', 'baby', 'baginhand',
+                  'baketballwaliking', 'balancebike', 'basketball2',
+                  'bicyclecity', 'bike', 'bikeman', 'bikemove1',
+                  'biketwo', 'blackwoman', 'bluebike', 'blueCar',
+                  'boundaryandfast', 'bus6', 'call', 'car', 'car3',
+                  'car10', 'car20', 'car37', 'car41', 'car66', 'caraftertree', 
+                  'carLight', 'carnotfar', 'carnotmove', 'carred', 'child', 'child1', 
+                  'child3', 'child4', 'children2', 'children3', 'children4', 'crossroad',
+                  'crouch', 'cycle1', 'cycle2', 'cycle3', 'cycle4', 'cycle5', 'diamond', 
+                  'dog', 'dog1', 'dog10', 'dog11', 'elecbike', 'elecbike10', 'elecbike2', 
+                  'elecbike3', 'elecbikechange2', 'elecbikeinfrontcar',  'luggage', 'man2',
+                  'man22', 'man23', 'man24', 'man26', 'man28', 'man29', 'man3', 'man4', 
+                  'man45', 'man5', 'man55', 'man68', 'man69', 'man7', 'man8', 'man88', 'man9',
+                  'manafterrain', 'mancross', 'mancross1', 'mancrossandup', 'mandrivecar',
+                  'manfaraway', 'maninblack', 'maninglass', 'maningreen2', 'maninred', 
+                  'manlight', 'manoccpart', 'manonboundary', 'manonelecbike', 'manontricycle',
+                  'manout2', 'manup', 'manwithbag', 'manwithbag4', 'manwithbasketball',
+                  'manwithluggage', 'manwithumbrella', 'manypeople', 'manypeople1', 
+                  'manypeople2', 'mobile', 'night2', 'nightcar', 'nightrun', 
+                  'nightthreepeople', 'notmove', 'oldman', 'oldman2', 'oldwoman',
+                  'orangeman1', 'people', 'people1', 'people3', 'playsoccer',
+                  'push', 'rainingwaliking', 'raningcar', 'redbag', 'redcar', 
+                  'redcar2', 'redmanchange', 'rmo', 'run', 'run1', 'run2', 'scooter',
+                  'shake', 'shoeslight', 'single1', 'single3', 'soccer', 'soccer2', 
+                  'soccerinhand', 'straw', 'stroller', 'supbus', 'supbus2', 'takeout',
+                  'tallman', 'threeman', 'threeman2', 'threepeople', 'threewoman2',
+                  'together', 'toy1', 'toy3', 'toy4', 'tree2', 'tree3', 'tree5',
+                  'trees', 'tricycle', 'tricycle1', 'tricycle2', 'tricycle6', 
+                  'tricycle9', 'tricyclefaraway', 'tricycletwo', 'twoelecbike',
+                  'twoelecbike1', 'twoman', 'twoman1', 'twoman2', 'twoperson',
+                  'twowoman', 'twowoman1', 'walking40', 'walking41', 'walkingman',
+                  'walkingman1', 'walkingman12', 'walkingman20', 'walkingman41',
+                  'walkingmantiny', 'walkingnight', 'walkingtogether', 
+                  'walkingtogether1', 'walkingtogetherright', 'walkingwithbag1',
+                  'walkingwithbag2', 'walkingwoman', 'whitebag', 'whitecar', 
+                  'whitecar3', 'whitecar4', 'whitecarafterrain', 'whiteman1', 
+                  'whitesuv', 'woamn46', 'woamnwithbike', 'woman', 'woman1', 
+                  'woman100', 'woman2', 'woman3', 'woman4', 'woman48', 'woman6',
+                  'woman89', 'woman96', 'woman99', 'womancross', 'womanfaraway',
+                  'womaninblackwithbike', 'womanleft', 'womanpink', 'womanred', 
+                  'womanrun', 'womanwithbag6', 'yellowcar']
     __test = ['elecbikewithhat',
               'elecbikewithlight', 'elecbikewithlight1', 'face1', 'floor-1', 'flower1',
               'flower2', 'fog', 'fog6', 'glass', 'glass2', 'graycar2', 'green', 
               'greentruck', 'greyman', 'greywoman', 'guidepost', 'hotglass', 'hotkettle',
               'inglassandmobile', 'jump', 'kettle', 'kite2', 'kite4']
 
-    __otb15_seqs = __tb100_seqs
-
     __version_dict = {
         2013: __otb13_seqs,
         2015: __otb15_seqs,
+        2019: __infrared,
         'otb2013': __otb13_seqs,
         'otb2015': __otb15_seqs,
         'tb50': __tb50_seqs,
         'tb100': __tb100_seqs,
-        'test': __test}
+        'test': __test,
+        'test_early': __test,
+        'test_late': __test,
+        'test_RGB': __test,
+        'test_thermal': __test,
+        'test_dropout': __test,
+        'test_SSMA': __test,
+        'test_SSMA_seperate': __test,
+        'test_Dense': __test,
+        'test_all': __test}
 
     def __init__(self, root_dir, version=2015, download=True):
         super(OTB, self).__init__()
@@ -87,7 +138,7 @@ class OTB(object):
         self._check_integrity(root_dir, version)
 
         valid_seqs = self.__version_dict[version]
-        if version in [2019, 'test']:
+        if version in [2019, 'test', 'test_early', 'test_late', 'test_RGB', 'test_thermal', 'test_dropout', 'test_SSMA', 'test_SSMA_seperate', 'test_Dense', 'test_all']:
             self.anno_files = sorted(list(chain.from_iterable(glob.glob(
                 os.path.join(root_dir, s, 'visible.txt')) for s in valid_seqs)))
         else:
@@ -98,7 +149,6 @@ class OTB(object):
         self.anno_files = self._filter_files(self.anno_files)
         self.seq_dirs = [os.path.dirname(f) for f in self.anno_files]
         self.seq_names = [os.path.basename(d) for d in self.seq_dirs]
-        print(self.seq_names)
         # rename repeated sequence names
         # (e.g., Jogging and Skating2)
         self.seq_names = self._rename_seqs(self.seq_names)
@@ -117,8 +167,12 @@ class OTB(object):
                 raise Exception('Sequence {} not found.'.format(index))
             index = self.seq_names.index(index)
 
-        img_files = sorted(glob.glob(
+        visible_files = sorted(glob.glob(
             os.path.join(self.seq_dirs[index], 'visible/*.jpg')))
+
+        infrared_files = sorted(glob.glob(
+            os.path.join(self.seq_dirs[index], 'infrared/*.jpg')))
+        
 
         # special sequences
         # (visit http://cvlab.hanyang.ac.kr/tracker_benchmark/index.html for detail)
@@ -137,12 +191,10 @@ class OTB(object):
         # to deal with different delimeters
         with open(self.anno_files[index], 'r') as f:
             anno = np.loadtxt(io.StringIO(f.read().replace(',', ' ')))
-        print(len(img_files))
-        print(len(anno))
-        assert len(img_files) == len(anno)
+        assert len(visible_files) == len(anno)
         assert anno.shape[1] == 4
 
-        return img_files, anno
+        return visible_files, infrared_files, anno
 
     def __len__(self):
         return len(self.seq_names)

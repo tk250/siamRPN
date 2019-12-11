@@ -20,29 +20,45 @@ class Tracker(object):
     def update(self, image):
         raise NotImplementedError()
 
-    def track(self, img_files, infrared_files, box, visualize=False):
+    def track(self, img_files, box, infrared_files=None, visualize=False): #
         frame_num = len(img_files)
         boxes = np.zeros((frame_num, 4))
         boxes[0] = box
         times = np.zeros(frame_num)
 
-        for f, (img_file, infrared_file) in enumerate(zip(img_files, infrared_files)):
-            image1 = Image.open(img_file)
-            if not image1.mode == 'RGB':
-                image1 = image1.convert('RGB')
-            #image = np.array(image1)
-            infrared_image = Image.open(infrared_file).convert('L')
-            infrared_image = np.array(infrared_image) 
+        if infrared_files:
+            for f, (img_file, infrared_file) in enumerate(zip(img_files, infrared_files)):#
+                image1 = Image.open(img_file)
+                if not image1.mode == 'RGB':
+                    image1 = image1.convert('RGB')
+                #image1 = np.array(image1)
+                infrared_image = Image.open(infrared_file).convert('L')
+                infrared_image = np.array(infrared_image) 
 
-            start_time = time.time()
-            if f == 0:
-                self.init(image1, infrared_image, box)
-            else:
-                boxes[f, :] = self.update(image1, infrared_image)
-            times[f] = time.time() - start_time
+                start_time = time.time()
+                if f == 0:
+                    self.init(image1, infrared_image, box)
+                else:
+                    boxes[f, :] = self.update(image1, infrared_image)
+                times[f] = time.time() - start_time
 
-            if visualize:
-                show_frame(image1, boxes[f, :])
+                if visualize:
+                    show_frame(image1, boxes[f, :])
+        else:
+            for f, (img_file) in enumerate(img_files):
+                image1 = Image.open(img_file)
+                if not image1.mode == 'RGB':
+                    image1 = image1.convert('RGB') 
+
+                start_time = time.time()
+                if f == 0:
+                    self.init(image1, box)
+                else:
+                    boxes[f, :] = self.update(image1)
+                times[f] = time.time() - start_time
+
+                if visualize:
+                    show_frame(image1, boxes[f, :])
 
         return boxes, times
 
