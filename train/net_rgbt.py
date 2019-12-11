@@ -25,7 +25,7 @@ class TrackerSiamRPN(Tracker):
         self.device = torch.device('cuda:0' if self.cuda else 'cpu')
 
         '''setup model'''
-        self.net = SiameseAlexNet()
+        self.net = SiameseAlexNetRGBT()
         #self.net.init_weights()
 
         if net_path is not None:
@@ -41,22 +41,22 @@ class TrackerSiamRPN(Tracker):
             momentum     = config.momentum,
             weight_decay = config.weight_decay)
 
-    def step(self, epoch, dataset_rgb, anchors, epoche, i = 0,  train=True):
+    def step(self, epoch, dataset_rgb, dataset_ir, anchors, epoche, i = 0,  train=True):
 
         if train:
             self.net.train()
         else:
             self.net.eval()
 
-        #template_i, detection_i, _, _ = dataset_ir
+        template_i, detection_i, _, _ = dataset_ir
         template_rgb, detection_rgb, regression_target, conf_target = dataset_rgb
-        #print('stuff', template_rgb.mean(), detection_rgb.mean(), regression_target.mean(), conf_target.mean())
         #template_i, detection_i = torch.from_numpy(np.zeros(template_i.size())).float(), torch.from_numpy(np.zeros(detection_i.size())).float()
 
         if self.cuda:
-            template_rgb, detection_rgb = template_rgb.cuda(), detection_rgb.cuda()#, template_i, detection_i, template_i.cuda(), detection_i.cuda()
+            template_rgb, detection_rgb, template_i, detection_i = template_rgb.cuda(), detection_rgb.cuda(), template_i.cuda(), detection_i.cuda()
             regression_target, conf_target = regression_target.cuda(), conf_target.cuda()
-        pred_score, pred_regression = self.net(template_rgb, detection_rgb)#, template_i, detection_i
+        #print('inputs',template_i, detection_i)
+        pred_score, pred_regression = self.net(template_rgb, detection_rgb, template_i, detection_i)
         #print('stuff', pred_score.mean(), pred_regression.mean())
 
         pred_conf   = pred_score.reshape(-1, 2, config.size).permute(0, 2, 1)

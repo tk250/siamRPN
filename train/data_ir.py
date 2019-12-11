@@ -44,7 +44,10 @@ class TrainDataLoader_ir(Dataset):
 
         img_files_rgb = sorted(glob.glob(os.path.join(self.sub_class_dir.seq_dirs[index_of_subclass], 'visible','*.jpg')))
         img_files_ir = sorted(glob.glob(os.path.join(self.sub_class_dir.seq_dirs[index_of_subclass], 'infrared', '*.jpg')))
-        video_gt = np.loadtxt(self.sub_class_dir.anno_files[index_of_subclass], delimiter=',')
+        if self.sub_class_dir.anno_files[index_of_subclass].endswith('infrared.txt') or self.sub_class_dir.anno_files[index_of_subclass].endswith('groundtruth.txt'):
+            video_gt = np.loadtxt(self.sub_class_dir.anno_files[index_of_subclass], delimiter=',')
+        else:
+            video_gt = np.loadtxt(self.sub_class_dir.anno_files[index_of_subclass], delimiter=' ')
 
         video_num  = len(video_name)
         #video_gt   = self.sub_class_dir[index_of_subclass][1]

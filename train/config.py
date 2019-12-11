@@ -5,7 +5,7 @@ class Config(object):
     '''config for train_siamrpn.py'''
     template_img_size  = 127
     detection_img_size = 271
-    epoches = 50
+    epoches = 200
     train_epoch_size = 1000
     val_epoch_size = 10
 
@@ -14,9 +14,9 @@ class Config(object):
     train_num_workers = 16                  # number of workers of train dataloader
     valid_num_workers = 16
 
-    start_lr = 3e-3
+    start_lr = 3e-4
     end_lr = 1e-5
-    warm_lr = 1e-3
+    warm_lr = 1e-4
     warm_scale = warm_lr/start_lr
     lr = np.logspace(np.log10(start_lr), np.log10(end_lr), num=epoches)[0]
     gamma = np.logspace(np.log10(start_lr), np.log10(end_lr), num=epoches)[1] / \

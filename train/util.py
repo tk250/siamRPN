@@ -92,6 +92,7 @@ class Util(object):
 
     # freeze layers
     def freeze_layers(self, model):
+        '''
         for layer in model.featureExtract_rgb[:10]:
             if isinstance(layer, nn.BatchNorm2d):
                 layer.eval()
@@ -119,7 +120,8 @@ class Util(object):
             elif isinstance(layer, nn.ReLU):
                 continue
             else:
-                raise KeyError('error in fixing former 3 layers')
+                raise KeyError('error in fixing former 3 layers')'''
+        pass
 
     def experiment_name_dir(self, experiment_name):
         experiment_name_dir = 'experiments/{}'.format(experiment_name)
@@ -237,6 +239,75 @@ class SavePlot(object):
                     val_label   = 'val loss'):
         self.plt  = plt
         self.plt.plot(step, train, 'r', label = train_label, color = 'red')
+        self.plt.plot(step, val, 'r', label = val_label, color='black')
+
+        self.plt.title(title)
+        self.plt.ylabel(ylabel)
+        self.plt.xlabel(xlabel)
+
+        '''save plot'''
+        self.plt.savefig("{}/{}.png".format(exp_name_dir, name))
+        if show:
+            self.plt.show()
+
+class SavePlotVal(object):
+    def __init__(self,  exp_name_dir,
+                        name = 'plot',
+                        title  = 'Siamese RPN',
+                        ylabel = 'loss',
+                        xlabel = 'epoch',
+                        show   = False):
+
+        self.step = 0
+        self.exp_name_dir = exp_name_dir
+        self.steps_array  = []
+        self.train_array  = []
+        self.val_array    = []
+        self.name   = name
+        self.title  = title
+        self.ylabel = ylabel
+        self.xlabel = xlabel
+        self.show   = show
+
+        self.plot(  self.exp_name_dir,
+                    self.steps_array,
+                    self.val_array,
+                    self.name,
+                    self.title,
+                    self.ylabel,
+                    self.xlabel,
+                    self.show)
+
+        self.plt.legend()
+
+    def update(self, val,
+                     val_label   = 'val loss',
+                     count_step=1):
+
+        self.step += count_step
+        self.steps_array.append(self.step)
+        self.val_array.append(val)
+
+        self.plot(exp_name_dir = self.exp_name_dir,
+                        step   = self.steps_array,
+                        val    = self.val_array,
+                        name   = self.name,
+                        title  = self.title,
+                        ylabel = self.ylabel,
+                        xlabel = self.xlabel,
+                        show   = self.show,
+                        val_label   = val_label)
+
+    def plot(self,  exp_name_dir,
+                    step,
+                    val,
+                    name,
+                    title,
+                    ylabel,
+                    xlabel,
+                    show,
+                    val_label   = 'val loss'):
+        self.plt  = plt
         self.plt.plot(step, val, 'r', label = val_label, color='black')
 
         self.plt.title(title)

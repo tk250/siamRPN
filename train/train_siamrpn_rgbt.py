@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from torch.nn import init
 from config import config
-from net import TrackerSiamRPN
+from net_rgbt import TrackerSiamRPN
 from data import TrainDataLoader
 from data_ir import TrainDataLoader_ir
 from data_rgbt import TrainDataLoaderRGBT
@@ -28,8 +28,8 @@ torch.manual_seed(1234) # config.seed
 parser = argparse.ArgumentParser(description='PyTorch SiameseRPN Training')
 
 parser.add_argument('--train_path', default='/home/krautsct/RGB-T234', metavar='DIR',help='path to dataset')
-parser.add_argument('--experiment_name', default='pretrained_RGB', metavar='DIR',help='path to weight')
-parser.add_argument('--checkpoint_path', default='./experiments/RGB_pretraining/model/model_e140.pth', help='resume')
+parser.add_argument('--experiment_name', default='pretrained_dense_onlyRGBT234', metavar='DIR',help='path to weight')
+parser.add_argument('--checkpoint_path', default='./experiments/Dense_pretraining/model/model_e100.pth', help='resume')
 # /home/arbi/desktop/GOT-10k # /Users/arbi/Desktop # /home/arbi/desktop/ILSVRC
 # 'experiments/default/model/model_e1.pth'
 def main():
@@ -48,7 +48,7 @@ def main():
         root_dir_RGBT234 = args.train_path
         root_dir_GTOT = '/home/krautsct/Grayscale-Thermal-Dataset'
         seq_dataset_rgb = GOT10k(root_dir_RGBT234, subset='train_i')
-        #seq_dataset_i = GOT10k(root_dir_RGBT234, root_dir_GTOT, subset='train', visible=False)
+        seq_dataset_i = GOT10k(root_dir_RGBT234, subset='train_i', visible=False)
     elif name == 'VID':
         root_dir = '/home/arbi/desktop/ILSVRC'
         seq_dataset = ImageNetVID(root_dir, subset=('train'))
@@ -71,13 +71,13 @@ def main():
         ToTensor()
     ])
 
-    '''train_data_ir  = TrainDataLoader_ir(seq_dataset_i, train_z_transforms, train_x_transforms, name)
+    train_data_ir  = TrainDataLoader_ir(seq_dataset_i, train_z_transforms, train_x_transforms, name)
     anchors = train_data_ir.anchors
     train_loader_ir = DataLoader(  dataset    = train_data_ir,
                                 batch_size = config.train_batch_size,
                                 shuffle    = True,
                                 num_workers= config.train_num_workers,
-                                pin_memory = True)'''
+                                pin_memory = True)
     train_data_rgb  = TrainDataLoader(seq_dataset_rgb, train_z_transforms, train_x_transforms, name)
     anchors = train_data_rgb.anchors
     train_loader_rgb = DataLoader(  dataset    = train_data_rgb,
@@ -92,7 +92,7 @@ def main():
     if name == 'GOT-10k':
         val_dir = '/home/krautsct/RGB-t-Val'
         seq_dataset_val_rgb = GOT10k(val_dir, subset='train_i')
-        #seq_dataset_val_ir = GOT10k(val_dir, subset='train_i', visible=False)
+        seq_dataset_val_ir = GOT10k(val_dir, subset='train_i', visible=False)
     elif name == 'VID':
         root_dir = '/home/arbi/desktop/ILSVRC'
         seq_dataset_val = ImageNetVID(root_dir, subset=('val'))
@@ -111,12 +111,12 @@ def main():
         ToTensor()
     ])
 
-    '''val_data  = TrainDataLoader_ir(seq_dataset_val_ir, valid_z_transforms, valid_x_transforms, name)
+    val_data  = TrainDataLoader_ir(seq_dataset_val_ir, valid_z_transforms, valid_x_transforms, name)
     val_loader_ir = DataLoader(    dataset    = val_data,
                                 batch_size = config.valid_batch_size,
                                 shuffle    = False,
                                 num_workers= config.valid_num_workers,
-                                pin_memory = True)'''
+                                pin_memory = True)
     val_data_rgb  = TrainDataLoader(seq_dataset_val_rgb, valid_z_transforms, valid_x_transforms, name)
     val_loader_rgb = DataLoader(    dataset    = val_data_rgb,
                                 batch_size = config.valid_batch_size,
@@ -160,10 +160,10 @@ def main():
         print('Train epoch {}/{}'.format(epoch+1, config.epoches))
         train_loss = []
         with tqdm(total=config.train_epoch_size) as progbar:
-            #for i, (dataset_rgb, dataset_ir) in enumerate(zip(train_loader_rgb, train_loader_ir)):
-            for i, dataset_rgb in enumerate(train_loader_rgb):
+            for i, (dataset_rgb, dataset_ir) in enumerate(zip(train_loader_rgb, train_loader_ir)):
+            #for i, dataset_rgb in enumerate(train_loader_rgb):
 
-                closs, rloss, loss = model.step(epoch, dataset_rgb, anchors, epoch, i, train=True)# dataset_ir,
+                closs, rloss, loss = model.step(epoch, dataset_rgb, dataset_ir, anchors, epoch, i, train=True)
 
                 closs_ = closs.cpu().item()
 
@@ -194,10 +194,10 @@ def main():
         val_loss = []
         with tqdm(total=config.val_epoch_size) as progbar:
             print('Val epoch {}/{}'.format(epoch+1, config.epoches))
-            #for i, (dataset_rgb, dataset_ir) in enumerate(zip(val_loader_rgb, val_loader_ir)):
-            for i, dataset_rgb in enumerate(val_loader_rgb):
+            for i, (dataset_rgb, dataset_ir) in enumerate(zip(val_loader_rgb, val_loader_ir)):
+            #for i, dataset_rgb in enumerate(val_loader_rgb):
 
-                val_closs, val_rloss, val_tloss = model.step(epoch, dataset_rgb, anchors, epoch, train=False)# dataset_ir,
+                val_closs, val_rloss, val_tloss = model.step(epoch, dataset_rgb, dataset_ir, anchors, epoch, train=False)
 
                 closs_ = val_closs.cpu().item()
 
