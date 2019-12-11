@@ -59,6 +59,12 @@ class OTB(object):
                     'Skater2', 'Subway', 'Suv', 'Tiger1', 'Toy', 'Trans',
                     'Twinnings', 'Vase'] + __tb50_seqs
 
+    __test = ['elecbikewithhat',
+              'elecbikewithlight', 'elecbikewithlight1', 'face1', 'floor-1', 'flower1',
+              'flower2', 'fog', 'fog6', 'glass', 'glass2', 'graycar2', 'green', 
+              'greentruck', 'greyman', 'greywoman', 'guidepost', 'hotglass', 'hotkettle',
+              'inglassandmobile', 'jump', 'kettle', 'kite2', 'kite4']
+
     __otb15_seqs = __tb100_seqs
 
     __version_dict = {
@@ -66,6 +72,7 @@ class OTB(object):
         2015: __otb15_seqs,
         'otb2013': __otb13_seqs,
         'otb2015': __otb15_seqs,
+        'test': __test,
         'tb50': __tb50_seqs,
         'tb100': __tb100_seqs}
 
@@ -80,8 +87,12 @@ class OTB(object):
         self._check_integrity(root_dir, version)
 
         valid_seqs = self.__version_dict[version]
-        self.anno_files = sorted(list(chain.from_iterable(glob.glob(
-            os.path.join(root_dir, s, 'groundtruth*.txt')) for s in valid_seqs)))
+        if version in [2019, 'test', 'test_early', 'test_late', 'test_RGB', 'test_thermal', 'test_dropout', 'test_SSMA', 'test_SSMA_seperate', 'test_Dense', 'test_all']:
+            self.anno_files = sorted(list(chain.from_iterable(glob.glob(
+                os.path.join(root_dir, s, 'visible.txt')) for s in valid_seqs)))
+        else:
+            self.anno_files = sorted(list(chain.from_iterable(glob.glob(
+                os.path.join(root_dir, s, 'groundtruth*.txt')) for s in valid_seqs)))
         # remove empty annotation files
         # (e.g., groundtruth_rect.1.txt of Human4)
         self.anno_files = self._filter_files(self.anno_files)
@@ -105,8 +116,11 @@ class OTB(object):
                 raise Exception('Sequence {} not found.'.format(index))
             index = self.seq_names.index(index)
 
+        visible_files = sorted(glob.glob(
+            os.path.join(self.seq_dirs[index], 'visible/*.jpg')))
+
         img_files = sorted(glob.glob(
-            os.path.join(self.seq_dirs[index], 'img/*.jpg')))
+            os.path.join(self.seq_dirs[index], 'infrared/*.jpg')))
 
         # special sequences
         # (visit http://cvlab.hanyang.ac.kr/tracker_benchmark/index.html for detail)

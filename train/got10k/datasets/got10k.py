@@ -24,36 +24,62 @@ class GOT10k(object):
         list_file (string, optional): If provided, only read sequences
             specified by the file instead of all sequences in the subset.
     """
-    def __init__(self, root_dir, subset='test', return_meta=False,
+    def __init__(self, root_dir1, root_dir2=None, subset='train_i', return_meta=False,
                  visible=True, list_file=None):
         super(GOT10k, self).__init__()
         assert subset in ['train', 'val', 'test', 'train_i'], 'Unknown subset.'
-        self.root_dir = root_dir
+        #self.root_dir1 = root_dir1
         self.subset = subset
         self.return_meta = False if subset == 'test' else return_meta
-        self.seq_names = os.listdir(root_dir)
+        self.seq_names1 = os.listdir(root_dir1)
+        if root_dir2:
+            self.seq_names2 = os.listdir(root_dir2)
+        else:
+            self.seq_names2 = []
+        self.seq_names = self.seq_names1 + self.seq_names2
         
         #infrared images
         if subset == 'train_i' and visible == False:   
-            self.seq_dirs = [os.path.join(root_dir, s, 'infrared')
-                             for s in self.seq_names]
-            self.anno_files = [os.path.join(root_dir,s, 'infrared.txt')
-                             for s in self.seq_names]
+            self.seq_dirs = [os.path.join(root_dir1, s, 'infrared')
+                             for s in self.seq_names1]
+            
+            self.anno_files = [os.path.join(root_dir1, s, 'infrared.txt')
+                             for s in self.seq_names1]
+            if root_dir2:
+                anno_files2 = [os.path.join(root_dir2, s, 'groundTruth_i.txt')
+                                 for s in self.seq_names2]
+                seq_dirs2 = [os.path.join(root_dir2, s, 'i')
+                                 for s in self.seq_names2]
+                self.seq_dirs.extend(seq_dirs2)
+                self.anno_files.extend(anno_files2)
         #rgb images
         elif subset == 'train_i' and visible == True:   
-            self.seq_dirs = [os.path.join(root_dir,s, 'visible')
-                             for s in self.seq_names]
-            self.anno_files = [os.path.join(root_dir, s, 'visible.txt')
-                             for s in self.seq_names]
+            self.seq_dirs = [os.path.join(root_dir1,s, 'visible')
+                             for s in self.seq_names1]
+            self.anno_files = [os.path.join(root_dir1, s, 'visible.txt')
+                             for s in self.seq_names1]
+            if root_dir2:
+                anno_files2 = [os.path.join(root_dir2, s, 'groundTruth_v.txt')
+                                 for s in self.seq_names2]
+                seq_dirs2 = [os.path.join(root_dir2, s, 'v')
+                                 for s in self.seq_names2]
+                self.seq_dirs.extend(seq_dirs2)
+                self.anno_files.extend(anno_files2)
         else:
             if list_file is None:
-                list_file = os.path.join(root_dir, subset, 'list.txt')
-            self._check_integrity(root_dir, subset, list_file)
+                list_file = os.path.join(root_dir1, subset, 'list.txt')
+            self._check_integrity(root_dir1, subset, list_file)
+            '''self.seq_names = os.listdir(os.path.join(root_dir, subset))
+            self.seq_dirs = [os.path.join(root_dir, subset, s)
+                             for s in self.seq_names]
+            self.anno_files = [os.path.join(d, 'groundtruth.txt')
+                               for d in self.seq_dirs]
+            print(sorted(self.anno_files)[:200])'''
 
             with open(list_file, 'r') as f:
-                self.seq_names = f.read().strip().split('\n')
-                self.seq_dirs = [os.path.join(root_dir, subset, s)
-                                 for s in self.seq_names]
+                self.seq_names1 = f.read().strip().split('\n')
+                self.seq_dirs = [os.path.join(root_dir1, subset, s)
+                                 for s in self.seq_names1]
                 self.anno_files = [os.path.join(d, 'groundtruth.txt')
                                    for d in self.seq_dirs]
 
@@ -76,7 +102,16 @@ class GOT10k(object):
 
         img_files = sorted(glob.glob(os.path.join(
             self.seq_dirs[index], '*.jpg')))
-        anno = np.loadtxt(self.anno_files[index], delimiter=',')
+        if len(img_files) == 0:
+            img_files = sorted(glob.glob(os.path.join(
+                self.seq_dirs[index], '*.png')))
+        if len(img_files) == 0:
+            img_files = sorted(glob.glob(os.path.join(
+                self.seq_dirs[index], '*.bmp')))
+        if self.anno_files[index].endswith('infrared.txt') or self.anno_files[index].endswith('visible.txt') or self.anno_files[index].endswith('groundtruth.txt'):
+            anno = np.loadtxt(self.anno_files[index], delimiter=',')
+        else:
+            anno = np.loadtxt(self.anno_files[index], delimiter=' ')
 
         if self.subset == 'test' and anno.ndim == 1:
             assert len(anno) == 4
@@ -91,7 +126,7 @@ class GOT10k(object):
             return img_files, anno
 
     def __len__(self):
-        return len(self.seq_names)
+        return len(self.seq_dirs)
 
     def _check_integrity(self, root_dir, subset, list_file=None):
         assert subset in ['train', 'val', 'test']
